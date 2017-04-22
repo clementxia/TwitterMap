@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>My map</title>
+  <style type="text/css">
+    html, body {height: 100%; margin: 0; padding: 0; }
+    #map {height: 100%; }
+  </style>
+
+  <script>
+      var s = new WebSocket('ws://localhost:8000/search/echo/');
+      s.onmessage = function(e) {
+        alert(e.data);
+      }
+      s.onclose = function(e) {}
+      s.onerror = function(e) {}
+  </script>
+</head>
+
+<body>
+  Keywords:
+  <input type="text" id="keywords"/>
+	<input type="submit" onclick="searchmap()"/>
+  <div id="map"></div>
+  <script async defer
+     src="HTTPS://maps.googleapis.com/maps/api/js?key=AIzaSyCzgHXot88zwWfBpQm9sDwHBfH2smdajEY
+     &libraries=visualization&callback=initMap">
+  </script>
+  <script>
+    var map;
+    function initMap() {
+      map = new google.maps.Map(document.getElementById('map'), {
+        center: {lat: 0, lng: 0},
+        zoom: 3,
+        styles: [{
+          featureType: 'poi',
+          stylers: [{ visibility: 'on' }]  // Turn off points of interest.
+        }, {
+          featureType: 'transit.station',
+          stylers: [{ visibility: 'on' }]  // Turn off bus stations, train stations, etc.
+        }],
+        disableDoubleClickZoom: false
+      });
+      return map;
+    }
+
+    function searchmap(){
+      map = initMap();
+      var quer = document.getElementById('keywords').value;
+      var url = "http://django-env.zi6pvgqmcn.us-west-2.elasticbeanstalk.com/search/result/"+quer+"/";
+      var xmlhttp = new XMLHttpRequest();
+      xmlhttp.open("GET", url, true);
+      xmlhttp.onreadystatechange = function() {
+        if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
+          var obj = JSON.parse(xmlhttp.responseText);
+          alert(obj.length+" tweets found!");
+          for (i = 0; i < obj.length; i++) {
+            lat = parseFloat(obj[i]['lat']);
+            lng = parseFloat(obj[i]['lon']);
+            sentiment = obj[i]['sentiment'];
+            var mark;
+            if (sentiment == "positive") {
+              mark = 'http://maps.google.com/mapfiles/ms/icons/green-dot.png';
+            }
+            else if (sentiment == "neutral") {
+              mark = 'http://maps.google.com/mapfiles/ms/icons/yellow-dot.png';
+            }
+            else {
+              mark = 'http://maps.google.com/mapfiles/ms/icons/red-dot.png';
+            }
+
+            var lo = {'lat': lat, 'lng': lng};
+            var marker = new google.maps.Marker({
+              icon: mark,
+              position: lo,
+              map: map,
+              animation: google.maps.Animation.DROP,
+            });
+            attachSecretMessage(marker, obj[i]['text']);
+          }
+        }
+      }
+      xmlhttp.send(); 
+    }
+
+    function attachSecretMessage(marker, secretMessage) {
+        var infowindow = new google.maps.InfoWindow({
+          content: secretMessage
+        });
+
+        marker.addListener('click', function() {
+          infowindow.open(marker.get('map'), marker);
+        });
+    }
+  </script>
+</body>
+
+</html>
